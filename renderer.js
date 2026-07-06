@@ -14,5 +14,21 @@ document.getElementById('send-btn').addEventListener('click', () => {
   console.log('消息已发送')
 })
 
+// ====== 监听主进程推送的消息（新增）======
+window.electronAPI.on('from-main', (message) => {
+  console.log('渲染进程收到主进程消息:', message)
+  document.getElementById('main-msg').innerText = `收到主进程消息: ${message}`
+})
+
+// ====== 打开文件对话框（新增）======
+document.getElementById('file-btn').addEventListener('click', async () => {
+  const filePath = await window.electronAPI.openFileDialog()
+  if (filePath) {
+    document.getElementById('file-path').innerText = `你选择的文件: ${filePath}`
+  } else {
+    document.getElementById('file-path').innerText = '未选择文件'
+  }
+})
+
 
 

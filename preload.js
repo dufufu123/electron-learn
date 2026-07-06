@@ -10,5 +10,9 @@ contextBridge.exposeInMainWorld('versions', {
 
 // 新增：单向通信的 send 方法
 contextBridge.exposeInMainWorld('electronAPI', {
-  send: (channel, data) => ipcRenderer.send(channel, data)
+  send: (channel, data) => ipcRenderer.send(channel, data),
+  // 新增：监听主进程推送的消息
+  on: (channel, callback) => ipcRenderer.on(channel, (event, ...args) => callback(...args)),
+  // 新增：打开文件对话框
+  openFileDialog: () => ipcRenderer.invoke('open-file-dialog')
 })
