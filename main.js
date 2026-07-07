@@ -1,48 +1,12 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, Tray, nativeImage, globalShortcut } = require('electron/main')
+const { app, BrowserWindow } = require('electron/main')
 const path = require('node:path')
-const fs = require('node:fs')
 
-// ====== 应用菜单模板（新增）======
-const menuTemplate = [
-  {
-    label: '文件',
-    submenu: [
-      {
-        label: '打开文件',
-        accelerator: 'CmdOrCtrl+O',  // 快捷键
-        click: () => {
-          // 点击菜单项时打印（仅演示，实际操作用 IPC 通知渲染进程）
-          console.log('菜单：打开文件被点击')
-        }
-      },
-      { type: 'separator' },        // 分隔线
-      {
-        label: '退出',
-        accelerator: 'CmdOrCtrl+Q',
-        role: 'quit'                // Electron 内置角色，直接退出应用
-      }
-    ]
-  },
-  {
-    label: '编辑',
-    submenu: [
-      { label: '撤销', role: 'undo' },
-      { label: '重做', role: 'redo' },
-      { type: 'separator' },
-      { label: '剪切', role: 'cut' },
-      { label: '复制', role: 'copy' },
-      { label: '粘贴', role: 'paste' }
-    ]
-  },
-  {
-    label: '视图',
-    submenu: [
-      { label: '重新加载', role: 'reload' },
-      { label: '开发者工具', role: 'toggleDevTools' }
-    ]
-  }
-]
+const { setupAppMenu, setupContextMenu } = require('./src/main/menu')
+const { createTray } = require('./src/main/tray')
+const { registerIpcHandlers } = require('./src/main/ipc-handlers')
+const { registerShortcuts, unregisterAllShortcuts } = require('./src/main/shortcuts')
 
+// ====== 创建窗口 ======
 const createWindow = () => {
   const win = new BrowserWindow({
     width: 800,
@@ -53,130 +17,23 @@ const createWindow = () => {
   })
 
   win.loadFile('index.html')
+  setupContextMenu(win) // 右键菜单
 
-  // ====== 右键菜单（新增）======
-  win.webContents.on('context-menu', (event, params) => {
-    const contextMenu = Menu.buildFromTemplate([
-      { label: '复制', role: 'copy' },
-      { label: '粘贴', role: 'paste' },
-      { type: 'separator' },
-      {
-        label: '检查元素',
-        click: () => win.webContents.inspectElement(params.x, params.y)
-      }
-    ])
-    contextMenu.popup()
-  })
-
-  // ====== 主进程 → 渲染进程：主动推送（新增）======
-  // 3秒后主进程主动向渲染进程发一条消息
+  // 主进程主动推送（3秒后）
   setTimeout(() => {
     win.webContents.send('from-main', '你好渲染进程，这是主进程主动推来的消息！')
   }, 3000)
-
-  return win  // 返回 win 引用，方便后续使用
 }
 
+// ====== 应用启动 ======
 app.whenReady().then(() => {
-  // ====== 设置应用菜单（新增）======
-  const appMenu = Menu.buildFromTemplate(menuTemplate)
-  Menu.setApplicationMenu(appMenu)
+  setupAppMenu()        // 应用菜单
+  createTray()          // 系统托盘
+  registerIpcHandlers() // IPC 通信
+  registerShortcuts()   // 全局快捷键
+  createWindow()        // 创建窗口
 
-  // ====== 系统托盘（新增）======
-  // 创建一个 16x16 蓝色图标（教学用，实际项目用图标文件）
-  const iconSize = 16
-  const iconBuffer = Buffer.alloc(iconSize * iconSize * 4) // RGBA
-  for (let i = 0; i < iconSize * iconSize; i++) {
-    iconBuffer[i * 4] = 0x42      // R（红色值）
-    iconBuffer[i * 4 + 1] = 0x85  // G（绿色值）
-    iconBuffer[i * 4 + 2] = 0xF4  // B（蓝色值）
-    iconBuffer[i * 4 + 3] = 0xFF  // A（不透明）
-  }
-  const trayIcon = nativeImage.createFromBuffer(iconBuffer, {
-    width: iconSize,
-    height: iconSize
-  })
-
-  const tray = new Tray(trayIcon)
-  tray.setToolTip('Electron 学习应用') // 鼠标悬停时提示文字
-
-  // 托盘的右键菜单
-  const trayMenu = Menu.buildFromTemplate([
-    { label: '显示窗口', click: () => {
-      const win = BrowserWindow.getAllWindows()[0]
-      if (win) win.show()
-    }},
-    { label: '退出', role: 'quit' }
-  ])
-  tray.setContextMenu(trayMenu)
-
-  // 左键点击托盘图标 → 切换窗口显示/隐藏
-  tray.on('click', () => {
-    const win = BrowserWindow.getAllWindows()[0]
-    if (!win) return
-    win.isVisible() ? win.hide() : win.show()
-  })
-
-  // ====== 全局快捷键（新增）======
-  // 即使应用最小化或在后台，按下快捷键也会触发
-  globalShortcut.register('CmdOrCtrl+Shift+E', () => {
-    console.log('全局快捷键被按下！')
-    const win = BrowserWindow.getAllWindows()[0]
-    if (win) {
-      win.show()                    // 如果窗口隐藏了，先显示
-      win.focus()                   // 窗口获得焦点
-    }
-  })
-
-  // ====== 双向通信：handle / invoke（已有）======
-  ipcMain.handle('ping', () => 'pong')
-
-  // ====== 单向通信：send / on（新增）======
-// 渲染进程发来消息，主进程只需接收，不需要返回值
-  ipcMain.on('notify-main', (event, message) => {
-    console.log('主进程收到消息:', message) // 在终端里能看到
-  })
-
-  // ====== 原生对话框（新增）======
-  ipcMain.handle('open-file-dialog', async () => {
-    const result = await dialog.showOpenDialog({
-      title: '选择一个文件',
-      properties: ['openFile'] // 允许选择文件
-    })
-    if (result.canceled) return null
-    return result.filePaths[0]
-  })
-
-  // ====== 文件操作：读取（新增）======
-  // 选文件 → 读内容 → 返回给渲染进程显示
-  ipcMain.handle('read-file', async () => {
-    const result = await dialog.showOpenDialog({
-      title: '选择一个文本文件',
-      properties: ['openFile']
-    })
-    if (result.canceled) return null
-
-    const filePath = result.filePaths[0]
-    const content = fs.readFileSync(filePath, 'utf-8') // 同步读取，简单直接
-    console.log('文件读取成功:', filePath)
-    return { filePath, content }
-  })
-
-  // ====== 文件操作：保存（新增）======
-  // 渲染进程传内容过来 → 选保存路径 → 写入文件
-  ipcMain.handle('save-file', async (event, content) => {
-    const result = await dialog.showSaveDialog({
-      title: '保存文件',
-      defaultPath: '新建文档.txt' // 默认文件名
-    })
-    if (result.canceled) return { success: false }
-
-    fs.writeFileSync(result.filePath, content, 'utf-8') // 同步写入
-    console.log('文件保存成功:', result.filePath)
-    return { success: true, filePath: result.filePath }
-  })
-  createWindow()
-
+  // macOS: 点击 Dock 图标时无窗口则重新创建
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
@@ -184,13 +41,14 @@ app.whenReady().then(() => {
   })
 })
 
+// 非 macOS: 所有窗口关闭时退出应用
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
 })
 
-// 应用退出前注销所有全局快捷键（必须做，否则快捷键会一直占用）
+// 退出前清理
 app.on('will-quit', () => {
-  globalShortcut.unregisterAll()
+  unregisterAllShortcuts()
 })
