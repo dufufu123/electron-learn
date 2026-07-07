@@ -56,5 +56,19 @@ document.getElementById('save-btn').addEventListener('click', async () => {
   }
 })
 
+// ====== 窗口间通信（新增）======
+// 主窗口 → 子窗口
+document.getElementById('to-sub-btn').addEventListener('click', () => {
+  const msg = document.getElementById('to-sub-input').value
+  if (!msg) return
+  window.electronAPI.send('to-sub', msg)
+  console.log('已发送到子窗口:', msg)
+})
+
+// 主窗口 ← 子窗口（接收子窗口发来的消息）
+window.electronAPI.on('from-sub-window', (message) => {
+  document.getElementById('from-sub').innerText = `子窗口发来的消息: ${message}`
+})
+
 
 
