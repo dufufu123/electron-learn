@@ -30,5 +30,31 @@ document.getElementById('file-btn').addEventListener('click', async () => {
   }
 })
 
+// ====== 读取文件内容（新增）======
+document.getElementById('read-btn').addEventListener('click', async () => {
+  const result = await window.electronAPI.readFile()
+  if (result) {
+    document.getElementById('read-path').innerText = `文件路径: ${result.filePath}`
+    document.getElementById('file-content').value = result.content
+  } else {
+    document.getElementById('read-path').innerText = '未选择文件'
+  }
+})
+
+// ====== 保存文件（新增）======
+document.getElementById('save-btn').addEventListener('click', async () => {
+  const content = document.getElementById('file-content').value
+  if (!content) {
+    document.getElementById('save-result').innerText = '请先读取文件或输入内容'
+    return
+  }
+  const result = await window.electronAPI.saveFile(content)
+  if (result.success) {
+    document.getElementById('save-result').innerText = `保存成功: ${result.filePath}`
+  } else {
+    document.getElementById('save-result').innerText = '已取消保存'
+  }
+})
+
 
 

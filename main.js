@@ -1,5 +1,6 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, Tray, nativeImage } = require('electron/main')
+const { app, BrowserWindow, ipcMain, dialog, Menu, Tray, nativeImage, globalShortcut } = require('electron/main')
 const path = require('node:path')
+const fs = require('node:fs')
 
 // ====== 应用菜单模板（新增）======
 const menuTemplate = [
@@ -116,6 +117,17 @@ app.whenReady().then(() => {
     win.isVisible() ? win.hide() : win.show()
   })
 
+  // ====== 全局快捷键（新增）======
+  // 即使应用最小化或在后台，按下快捷键也会触发
+  globalShortcut.register('CmdOrCtrl+Shift+E', () => {
+    console.log('全局快捷键被按下！')
+    const win = BrowserWindow.getAllWindows()[0]
+    if (win) {
+      win.show()                    // 如果窗口隐藏了，先显示
+      win.focus()                   // 窗口获得焦点
+    }
+  })
+
   // ====== 双向通信：handle / invoke（已有）======
   ipcMain.handle('ping', () => 'pong')
 
@@ -131,9 +143,37 @@ app.whenReady().then(() => {
       title: '选择一个文件',
       properties: ['openFile'] // 允许选择文件
     })
-    // canceled 为 true 表示用户点了取消，没有选文件
     if (result.canceled) return null
-    return result.filePaths[0] // 返回所选文件的完整路径
+    return result.filePaths[0]
+  })
+
+  // ====== 文件操作：读取（新增）======
+  // 选文件 → 读内容 → 返回给渲染进程显示
+  ipcMain.handle('read-file', async () => {
+    const result = await dialog.showOpenDialog({
+      title: '选择一个文本文件',
+      properties: ['openFile']
+    })
+    if (result.canceled) return null
+
+    const filePath = result.filePaths[0]
+    const content = fs.readFileSync(filePath, 'utf-8') // 同步读取，简单直接
+    console.log('文件读取成功:', filePath)
+    return { filePath, content }
+  })
+
+  // ====== 文件操作：保存（新增）======
+  // 渲染进程传内容过来 → 选保存路径 → 写入文件
+  ipcMain.handle('save-file', async (event, content) => {
+    const result = await dialog.showSaveDialog({
+      title: '保存文件',
+      defaultPath: '新建文档.txt' // 默认文件名
+    })
+    if (result.canceled) return { success: false }
+
+    fs.writeFileSync(result.filePath, content, 'utf-8') // 同步写入
+    console.log('文件保存成功:', result.filePath)
+    return { success: true, filePath: result.filePath }
   })
   createWindow()
 
@@ -148,4 +188,9 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+// 应用退出前注销所有全局快捷键（必须做，否则快捷键会一直占用）
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll()
 })
