@@ -15,5 +15,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openFileDialog: () => ipcRenderer.invoke('open-file-dialog'),
   // 新增：文件读写
   readFile: () => ipcRenderer.invoke('read-file'),
-  saveFile: (content) => ipcRenderer.invoke('save-file', content)
+  saveFile: (content) => ipcRenderer.invoke('save-file', content),
+
+  // ====== 窗口控制（无边框窗口用）======
+  windowControls: {
+    minimize: () => ipcRenderer.send('window-minimize'),
+    maximize: () => ipcRenderer.send('window-maximize'),
+    close: () => ipcRenderer.send('window-close')
+  }
 })

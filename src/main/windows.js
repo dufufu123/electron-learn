@@ -36,6 +36,7 @@ function createSubWindow() {
   subWindow = new BrowserWindow({
     width: 400,
     height: 300,
+    frame: false,           // ← 去掉系统标题栏
     title: '子窗口',
     webPreferences: {
       preload: path.join(__dirname, '..', '..', 'preload.js')
@@ -68,6 +69,18 @@ function setupIpcRelay() {
     if (mainWindow) {
       mainWindow.webContents.send('from-sub-window', message)
     }
+  })
+
+  // ====== 窗口控制（无边框窗口需要自己实现最小化/最大化/关闭）======
+  ipcMain.on('window-minimize', (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.minimize()
+  })
+  ipcMain.on('window-maximize', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (win) win.isMaximized() ? win.unmaximize() : win.maximize()
+  })
+  ipcMain.on('window-close', (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.close()
   })
 }
 
