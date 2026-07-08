@@ -1,4 +1,4 @@
-const { BrowserWindow, ipcMain } = require('electron/main')
+const { BrowserWindow, ipcMain, app } = require('electron/main')
 const path = require('node:path')
 const { setupContextMenu } = require('./menu')
 
@@ -6,8 +6,25 @@ const { setupContextMenu } = require('./menu')
 let mainWindow = null
 let subWindow = null
 
+// 判断是否开发模式
+const isDev = !app.isPackaged
+const VITE_URL = 'http://localhost:5173'
+
 function getMainWindow() {
   return mainWindow
+}
+
+// ====== 加载页面（dev 连 Vite，prod 加载构建文件）======
+function loadWindowContent(win, page) {
+  if (isDev) {
+    const url = page === 'index.html' ? VITE_URL : `${VITE_URL}/${page}`
+    win.loadURL(url).catch(() => {
+      console.warn(`Vite 开发服务器未启动，请先执行 npx vite`)
+      win.loadFile(path.join(__dirname, '..', '..', 'dist', 'renderer', page))
+    })
+  } else {
+    win.loadFile(path.join(__dirname, '..', '..', 'dist', 'renderer', page))
+  }
 }
 
 // ====== 创建主窗口 ======
@@ -20,10 +37,9 @@ function createMainWindow() {
     }
   })
 
-  mainWindow.loadFile('index.html')
+  loadWindowContent(mainWindow, 'index.html')
   setupContextMenu(mainWindow)
 
-  // 主进程主动推送
   setTimeout(() => {
     mainWindow.webContents.send('from-main', '你好渲染进程，这是主进程主动推来的消息！')
   }, 3000)
@@ -36,16 +52,15 @@ function createSubWindow() {
   subWindow = new BrowserWindow({
     width: 400,
     height: 300,
-    frame: false,           // ← 去掉系统标题栏
+    frame: false,
     title: '子窗口',
     webPreferences: {
       preload: path.join(__dirname, '..', '..', 'preload.js')
     }
   })
 
-  subWindow.loadFile(path.join('windows', 'sub', 'index.html'))
+  loadWindowContent(subWindow, 'sub.html')
 
-  // 子窗口关闭时清空引用
   subWindow.on('closed', () => {
     subWindow = null
   })
@@ -55,7 +70,6 @@ function createSubWindow() {
 
 // ====== IPC 中继：窗口 ←→ 主进程 ←→ 窗口 ======
 function setupIpcRelay() {
-  // 主窗口 → 子窗口
   ipcMain.on('to-sub', (event, message) => {
     console.log('主窗口 → 子窗口:', message)
     if (subWindow) {
@@ -63,7 +77,6 @@ function setupIpcRelay() {
     }
   })
 
-  // 子窗口 → 主窗口
   ipcMain.on('to-main', (event, message) => {
     console.log('子窗口 → 主窗口:', message)
     if (mainWindow) {
@@ -71,7 +84,6 @@ function setupIpcRelay() {
     }
   })
 
-  // ====== 窗口控制（无边框窗口需要自己实现最小化/最大化/关闭）======
   ipcMain.on('window-minimize', (event) => {
     BrowserWindow.fromWebContents(event.sender)?.minimize()
   })
