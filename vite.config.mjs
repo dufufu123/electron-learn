@@ -12,7 +12,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'src/renderer/main/index.html'),
-        sub: resolve(__dirname, 'src/renderer/sub/index.html')
+        sub: resolve(__dirname, 'src/renderer/sub/index.html'),
+        'from-main': resolve(__dirname, 'src/renderer/from-main/index.html')
       }
     }
   }

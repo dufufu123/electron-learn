@@ -28,6 +28,7 @@
 
     <!-- 窗口间通信 -->
     <h2>窗口间通信</h2>
+    <button @click="openFromMain">打开 fromMain 窗口</button>
     <input v-model="toSubMsg" type="text" placeholder="输入发给子窗口的消息" />
     <button @click="sendToSub">发给子窗口</button>
     <p>{{ fromSubMsg }}</p>
@@ -106,6 +107,10 @@ const saveFile = async () => {
 const sendToSub = () => {
   if (!toSubMsg.value) return
   window.electronAPI.send('to-sub', toSubMsg.value)
+}
+
+const openFromMain = () => {
+  window.electronAPI.send('open-from-main-window')
 }
 </script>
 
