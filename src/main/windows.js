@@ -17,9 +17,8 @@ function getMainWindow() {
 // ====== 加载页面（dev 连 Vite，prod 加载构建文件）======
 function loadWindowContent(win, page) {
   if (isDev) {
-    const url = page === 'index.html' ? VITE_URL : `${VITE_URL}/${page}`
-    win.loadURL(url).catch(() => {
-      console.warn(`Vite 开发服务器未启动，请先执行 npx vite`)
+    win.loadURL(`${VITE_URL}/${page}`).catch(() => {
+      console.warn('Vite 开发服务器未启动，请先执行 npx vite')
       win.loadFile(path.join(__dirname, '..', '..', 'dist', 'renderer', page))
     })
   } else {
@@ -37,7 +36,7 @@ function createMainWindow() {
     }
   })
 
-  loadWindowContent(mainWindow, 'index.html')
+  loadWindowContent(mainWindow, 'main/index.html')
   setupContextMenu(mainWindow)
 
   setTimeout(() => {
@@ -59,7 +58,7 @@ function createSubWindow() {
     }
   })
 
-  loadWindowContent(subWindow, 'sub.html')
+  loadWindowContent(subWindow, 'sub/index.html')
 
   subWindow.on('closed', () => {
     subWindow = null

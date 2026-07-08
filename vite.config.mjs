@@ -11,8 +11,8 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        index: resolve(__dirname, 'src/renderer/index.html'),
-        sub: resolve(__dirname, 'src/renderer/sub.html')
+        main: resolve(__dirname, 'src/renderer/main/index.html'),
+        sub: resolve(__dirname, 'src/renderer/sub/index.html')
       }
     }
   }
