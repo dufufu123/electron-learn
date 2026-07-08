@@ -4,7 +4,8 @@ const { setupAppMenu } = require('./src/main/menu')
 const { createTray } = require('./src/main/tray')
 const { registerIpcHandlers } = require('./src/main/ipc-handlers')
 const { registerShortcuts, unregisterAllShortcuts } = require('./src/main/shortcuts')
-const { createMainWindow, createSubWindow, setupIpcRelay } = require('./src/main/windows')
+const { createMainWindow, createSubWindow } = require('./src/main/windows')
+const { setupIpcRelay } = require('./src/main/ipc-relay')
 
 // ====== 应用启动 ======
 app.whenReady().then(() => {
